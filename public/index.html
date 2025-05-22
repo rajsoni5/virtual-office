@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Virtual Office</title>
+  <link rel="stylesheet" href="styles.css" />
+  <script src="/socket.io/socket.io.js" defer></script>
+  <script src="https://cdn.jsdelivr.net/npm/peerjs@1.5.2/dist/peerjs.min.js" defer></script>
+  <script src="script.js" defer></script>
+</head>
+<body>
+  <div id="floor-controls">
+    <button onclick="showFloor('floor1')">Floor 1</button>
+    <button onclick="showFloor('floor2')">Floor 2</button>
+  </div>
+
+  <div id="office">
+    <!-- Floor 1 -->
+    <div class="floor" id="floor1">
+      <div class="room hr">HR Room</div>
+      <div class="room employee">Employee Area</div>
+      <div class="room chill">Chill Zone</div>
+    </div>
+
+    <!-- Floor 2 -->
+    <div class="floor" id="floor2" style="display:none;">
+      <div class="room manager">Manager Room</div>
+      <div class="room discussion">Discussion Zone</div>
+    </div>
+  </div>
+
+  <div id="avatar">🧑</div>
+  <div id="video-grid"></div>
+</body>
+</html>

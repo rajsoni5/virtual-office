@@ -1,0 +1,73 @@
+body {
+  font-family: sans-serif;
+  background: #f0f0f0;
+  margin: 0;
+  padding: 0;
+}
+
+#floor-controls {
+  text-align: center;
+  margin: 10px;
+}
+
+#office {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.floor {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 20px;
+  padding: 20px;
+  border: 2px solid #ccc;
+  min-height: 400px;
+  width: 80%;
+  background: #fff;
+  margin-top: 20px;
+  position: relative;
+}
+
+.room {
+  border: 2px solid #333;
+  border-radius: 10px;
+  padding: 30px;
+  width: 200px;
+  height: 150px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  background: #e0e0e0;
+  font-weight: bold;
+}
+
+.discussion {
+  background: #f7f7f7;
+  border: 2px dashed #333;
+  width: 200px;
+  height: 200px;
+}
+
+#avatar {
+  position: absolute;
+  cursor: grab;
+  user-select: none;
+  font-size: 30px;
+  left: 100px;
+  top: 100px;
+  z-index: 10;
+}
+
+.avatar {
+  position: absolute;
+  font-size: 30px;
+}
+
+#video-grid {
+  position: absolute;
+  bottom: 10px;
+  right: 10px;
+}
