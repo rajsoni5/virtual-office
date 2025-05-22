@@ -6,13 +6,11 @@ const { ExpressPeerServer } = require('peer');
 const app = express();
 const server = http.createServer(app);
 const io = new Server(server);
-
-// Use dynamic port from environment or 3000
 const PORT = process.env.PORT || 3000;
 
 const peerServer = ExpressPeerServer(server, {
   debug: true,
-  path: '/',
+  path: '/peerjs'
 });
 
 app.use('/peerjs', peerServer);
@@ -22,11 +20,16 @@ io.on('connection', (socket) => {
   console.log('a user connected');
 
   socket.on('join-room', (peerId) => {
-    socket.broadcast.emit('user-connected', peerId);
+    socket.peerId = peerId;
   });
 
-  socket.on('avatar-move', (position) => {
-    socket.broadcast.emit('avatar-move', position);
+  socket.on('entered-room', ({ room, peerId }) => {
+    socket.currentRoom = room;
+    socket.broadcast.emit('user-in-room', { userId: peerId, room });
+  });
+
+  socket.on('disconnect', () => {
+    console.log('user disconnected');
   });
 });
 
