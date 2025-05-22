@@ -10,7 +10,7 @@ const socket = io();
 // Avatar drag logic
 const avatar = document.getElementById('avatar');
 let isDragging = false;
-let hasJoinedVoice = false;
+let currentRoom = null; // Track current room of this user
 
 avatar.addEventListener('mousedown', () => {
   isDragging = true;
@@ -30,35 +30,36 @@ document.addEventListener('mousemove', (e) => {
     avatar.style.top = e.pageY + 'px';
     socket.emit('avatar-move', { x: e.pageX, y: e.pageY });
 
-    // Dynamically get the visible discussion area inside the currently visible floor
+    // Detect which room avatar is in now
     const visibleFloor = document.querySelector('.floor[style*="display: flex"]');
     if (!visibleFloor) return;
-    const discussionArea = visibleFloor.querySelector('.discussion');
-    if (!discussionArea) return;
 
-    // Check intersection
-    const avatarRect = avatar.getBoundingClientRect();
-    const discussionRect = discussionArea.getBoundingClientRect();
+    let newRoom = null;
+    visibleFloor.querySelectorAll('.room').forEach(room => {
+      const roomRect = room.getBoundingClientRect();
+      const avatarRect = avatar.getBoundingClientRect();
 
-    const inside =
-      avatarRect.left < discussionRect.right &&
-      avatarRect.right > discussionRect.left &&
-      avatarRect.top < discussionRect.bottom &&
-      avatarRect.bottom > discussionRect.top;
+      const inside =
+        avatarRect.left < roomRect.right &&
+        avatarRect.right > roomRect.left &&
+        avatarRect.top < roomRect.bottom &&
+        avatarRect.bottom > roomRect.top;
 
-    if (inside && !hasJoinedVoice) {
-      console.log('Joined voice chat in discussion area');
-      socket.emit('join-room', peer.id);
-      hasJoinedVoice = true;
-    } else if (!inside && hasJoinedVoice) {
-      hasJoinedVoice = false; // reset so user can join again
-      console.log('Left discussion area');
+      if (inside) newRoom = room.className.replace('room', '').trim();
+    });
+
+    if (newRoom !== currentRoom) {
+      currentRoom = newRoom;
+      console.log('User moved to room:', currentRoom);
+      socket.emit('update-room', currentRoom);
     }
   }
 });
 
 // Receive avatar movements from others
 socket.on('avatar-update', (data) => {
+  if(data.id === peer.id) return; // Skip own avatar updates
+
   let other = document.getElementById(data.id);
   if (!other) {
     other = document.createElement('div');
@@ -105,17 +106,22 @@ navigator.mediaDevices.getUserMedia({ video: false, audio: true }).then(stream =
     });
   });
 
-  socket.on('user-in-discussion', userId => {
-    const call = peer.call(userId, stream);
-    const audio = document.createElement('audio');
-    call.on('stream', userAudioStream => {
-      addAudioStream(audio, userAudioStream);
+  // Listen for users in the same voice room
+  socket.on('users-in-room', usersInRoom => {
+    usersInRoom.forEach(userId => {
+      if (userId === peer.id) return; // skip self
+      const call = peer.call(userId, stream);
+      const audio = document.createElement('audio');
+      call.on('stream', userAudioStream => {
+        addAudioStream(audio, userAudioStream);
+      });
     });
   });
 });
 
 peer.on('open', id => {
   socket.emit('join-room', id);
+  // Initially user has no room, server can handle that
 });
 
 function addAudioStream(audio, stream) {
