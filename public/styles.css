@@ -4,19 +4,16 @@ body {
   margin: 0;
   padding: 0;
 }
-
 #floor-controls {
   text-align: center;
   margin: 10px;
 }
-
 #office {
   position: relative;
   display: flex;
   flex-direction: column;
   align-items: center;
 }
-
 .floor {
   display: flex;
   flex-wrap: wrap;
@@ -30,7 +27,6 @@ body {
   margin-top: 20px;
   position: relative;
 }
-
 .room {
   border: 2px solid #333;
   border-radius: 10px;
@@ -42,15 +38,8 @@ body {
   align-items: center;
   background: #e0e0e0;
   font-weight: bold;
+  position: relative;
 }
-
-.discussion {
-  background: #f7f7f7;
-  border: 2px dashed #333;
-  width: 200px;
-  height: 200px;
-}
-
 #avatar {
   position: absolute;
   cursor: grab;
@@ -60,14 +49,7 @@ body {
   top: 100px;
   z-index: 10;
 }
-
 .avatar {
   position: absolute;
   font-size: 30px;
-}
-
-#video-grid {
-  position: absolute;
-  bottom: 10px;
-  right: 10px;
 }
