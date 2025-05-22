@@ -1,133 +1,62 @@
-// Floor toggle function stays as-is
 function showFloor(floorId) {
   document.querySelectorAll('.floor').forEach(f => f.style.display = 'none');
   document.getElementById(floorId).style.display = 'flex';
 }
-
-// Connect to Socket.IO
 const socket = io();
-
-// Avatar drag logic
 const avatar = document.getElementById('avatar');
 let isDragging = false;
-let currentRoom = null; // Track current room of this user
-
-avatar.addEventListener('mousedown', () => {
-  isDragging = true;
-  console.log('Drag started');
-});
-avatar.ondragstart = e => e.preventDefault();
-
-document.addEventListener('mouseup', () => {
-  isDragging = false;
-  console.log('Drag ended');
-});
-
-document.addEventListener('mousemove', (e) => {
-  if (isDragging) {
-    // Move avatar
-    avatar.style.left = e.pageX + 'px';
-    avatar.style.top = e.pageY + 'px';
-    socket.emit('avatar-move', { x: e.pageX, y: e.pageY });
-
-    // Detect which room avatar is in now
-    const visibleFloor = document.querySelector('.floor[style*="display: flex"]');
-    if (!visibleFloor) return;
-
-    let newRoom = null;
-    visibleFloor.querySelectorAll('.room').forEach(room => {
-      const roomRect = room.getBoundingClientRect();
-      const avatarRect = avatar.getBoundingClientRect();
-
-      const inside =
-        avatarRect.left < roomRect.right &&
-        avatarRect.right > roomRect.left &&
-        avatarRect.top < roomRect.bottom &&
-        avatarRect.bottom > roomRect.top;
-
-      if (inside) newRoom = room.className.replace('room', '').trim();
-    });
-
-    if (newRoom !== currentRoom) {
-      currentRoom = newRoom;
-      console.log('User moved to room:', currentRoom);
-      socket.emit('update-room', currentRoom);
-    }
-  }
-});
-
-// Receive avatar movements from others
-socket.on('avatar-update', (data) => {
-  if(data.id === peer.id) return; // Skip own avatar updates
-
-  let other = document.getElementById(data.id);
-  if (!other) {
-    other = document.createElement('div');
-    other.className = 'avatar';
-    other.id = data.id;
-    other.innerText = '🧑';
-    other.style.position = 'absolute';
-    other.style.fontSize = '30px';
-    document.body.appendChild(other);
-  }
-  other.style.left = data.x + 'px';
-  other.style.top = data.y + 'px';
-});
-
-// Remove avatar on user disconnect
-socket.on('user-disconnected', (id) => {
-  const otherAvatar = document.getElementById(id);
-  if (otherAvatar) otherAvatar.remove();
-});
-
-// PeerJS Setup with deployment-friendly config
-const peer = new Peer(undefined, {
-  host: location.hostname,
-  port: location.protocol === 'https:' ? 443 : 80,
-  path: '/peerjs',
-  secure: location.protocol === 'https:'
-});
-
+let currentRoom = null;
+const peers = {};
+const peer = new Peer(undefined, { host: '/', port: 3000, path: '/peerjs' });
 const myAudio = document.createElement('audio');
 myAudio.muted = true;
-const audioGrid = document.createElement('div');
-audioGrid.id = 'audio-grid';
-document.body.appendChild(audioGrid);
-audioGrid.appendChild(myAudio);
-
-navigator.mediaDevices.getUserMedia({ video: false, audio: true }).then(stream => {
-  addAudioStream(myAudio, stream);
-
+const audioContainer = document.createElement('div');
+audioContainer.id = 'audio-container';
+document.body.appendChild(audioContainer);
+navigator.mediaDevices.getUserMedia({ audio: true }).then(stream => {
   peer.on('call', call => {
     call.answer(stream);
     const audio = document.createElement('audio');
-    call.on('stream', userAudioStream => {
-      addAudioStream(audio, userAudioStream);
-    });
+    call.on('stream', userAudio => addAudioStream(audio, userAudio));
   });
-
-  // Listen for users in the same voice room
-  socket.on('users-in-room', usersInRoom => {
-    usersInRoom.forEach(userId => {
-      if (userId === peer.id) return; // skip self
+  socket.on('user-in-room', ({ userId, room }) => {
+    if (room === currentRoom && !peers[userId]) {
       const call = peer.call(userId, stream);
       const audio = document.createElement('audio');
-      call.on('stream', userAudioStream => {
-        addAudioStream(audio, userAudioStream);
-      });
-    });
+      call.on('stream', userAudio => addAudioStream(audio, userAudio));
+      peers[userId] = call;
+    }
   });
 });
-
-peer.on('open', id => {
-  socket.emit('join-room', id);
-  // Initially user has no room, server can handle that
-});
-
+peer.on('open', id => socket.emit('join-room', id));
 function addAudioStream(audio, stream) {
   audio.srcObject = stream;
-  audio.addEventListener('loadedmetadata', () => {
-    audio.play();
-  });
-  audioGrid.appendChild(audio);
+  audio.addEventListener('loadedmetadata', () => audio.play());
+  audioContainer.appendChild(audio);
 }
+avatar.addEventListener('mousedown', () => isDragging = true);
+avatar.ondragstart = e => e.preventDefault();
+document.addEventListener('mouseup', () => isDragging = false);
+document.addEventListener('mousemove', (e) => {
+  if (!isDragging) return;
+  avatar.style.left = e.pageX + 'px';
+  avatar.style.top = e.pageY + 'px';
+  socket.emit('avatar-move', { x: e.pageX, y: e.pageY });
+  const visibleFloor = document.querySelector('.floor[style*="display: flex"]');
+  const rooms = visibleFloor?.querySelectorAll('.room') || [];
+  const avatarRect = avatar.getBoundingClientRect();
+  let foundRoom = null;
+  rooms.forEach(room => {
+    const rect = room.getBoundingClientRect();
+    const inside =
+      avatarRect.left < rect.right &&
+      avatarRect.right > rect.left &&
+      avatarRect.top < rect.bottom &&
+      avatarRect.bottom > rect.top;
+    if (inside) foundRoom = room.dataset.room;
+  });
+  if (foundRoom && foundRoom !== currentRoom) {
+    currentRoom = foundRoom;
+    socket.emit('entered-room', { room: foundRoom, peerId: peer.id });
+  }
+});
