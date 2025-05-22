@@ -1,24 +1,35 @@
 const express = require('express');
-const { createServer } = require('http');
+const http = require('http');
 const { Server } = require('socket.io');
 const { ExpressPeerServer } = require('peer');
+
 const app = express();
-const server = createServer(app);
+const server = http.createServer(app);
 const io = new Server(server);
-const peerServer = ExpressPeerServer(server, { path: '/peerjs' });
+
+// Use dynamic port from environment or 3000
+const PORT = process.env.PORT || 3000;
+
+const peerServer = ExpressPeerServer(server, {
+  debug: true,
+  path: '/',
+});
+
 app.use('/peerjs', peerServer);
-app.use(express.static(__dirname));
-io.on('connection', socket => {
-  socket.on('join-room', id => socket.peerId = id);
-  socket.on('entered-room', ({ room, peerId }) => {
-    socket.currentRoom = room;
-    io.emit('user-in-room', { userId: peerId, room });
+app.use(express.static('public'));
+
+io.on('connection', (socket) => {
+  console.log('a user connected');
+
+  socket.on('join-room', (peerId) => {
+    socket.broadcast.emit('user-connected', peerId);
   });
-  socket.on('avatar-move', data => {
-    socket.broadcast.emit('avatar-update', { id: socket.peerId, ...data });
-  });
-  socket.on('disconnect', () => {
-    io.emit('user-disconnected', socket.peerId);
+
+  socket.on('avatar-move', (position) => {
+    socket.broadcast.emit('avatar-move', position);
   });
 });
-server.listen(10000, () => console.log('Server running on http://localhost:10000'));
+
+server.listen(PORT, () => {
+  console.log(`Server running on port ${PORT}`);
+});
