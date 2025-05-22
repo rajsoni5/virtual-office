@@ -1,70 +1,24 @@
 const express = require('express');
-const app = express();
-const server = require('http').Server(app);
-const io = require('socket.io')(server);
+const { createServer } = require('http');
+const { Server } = require('socket.io');
 const { ExpressPeerServer } = require('peer');
+const app = express();
+const server = createServer(app);
+const io = new Server(server);
 const peerServer = ExpressPeerServer(server, { path: '/peerjs' });
-
 app.use('/peerjs', peerServer);
-app.use(express.static('public'));
-
-const PORT = process.env.PORT || 10000;
-
-server.listen(PORT, () => console.log(`Server running on port ${PORT}`));
-
-const users = {};      // socketId -> { peerId, room }
-const rooms = {};      // roomName -> Set of peerIds
-
+app.use(express.static(__dirname));
 io.on('connection', socket => {
-  console.log('Socket connected:', socket.id);
-
-  socket.on('join-room', peerId => {
-    users[socket.id] = { peerId, room: null };
-    console.log(`User joined with peer ID: ${peerId}`);
+  socket.on('join-room', id => socket.peerId = id);
+  socket.on('entered-room', ({ room, peerId }) => {
+    socket.currentRoom = room;
+    io.emit('user-in-room', { userId: peerId, room });
   });
-
-  socket.on('avatar-move', pos => {
-    if (!users[socket.id]) return;
-    io.emit('avatar-update', { id: users[socket.id].peerId, x: pos.x, y: pos.y });
+  socket.on('avatar-move', data => {
+    socket.broadcast.emit('avatar-update', { id: socket.peerId, ...data });
   });
-
-  socket.on('update-room', newRoom => {
-    if (!users[socket.id]) return;
-
-    const user = users[socket.id];
-
-    // Remove from old room
-    if (user.room && rooms[user.room]) {
-      rooms[user.room].delete(user.peerId);
-      if (rooms[user.room].size === 0) {
-        delete rooms[user.room];
-      }
-    }
-
-    user.room = newRoom;
-
-    // Add to new room
-    if (!rooms[newRoom]) {
-      rooms[newRoom] = new Set();
-    }
-    rooms[newRoom].add(user.peerId);
-
-    // Notify everyone in the same room with peer IDs present
-    io.to(socket.id).emit('users-in-room', Array.from(rooms[newRoom]));
-  });
-
   socket.on('disconnect', () => {
-    if (!users[socket.id]) return;
-    const user = users[socket.id];
-
-    if (user.room && rooms[user.room]) {
-      rooms[user.room].delete(user.peerId);
-      if (rooms[user.room].size === 0) {
-        delete rooms[user.room];
-      }
-    }
-
-    io.emit('user-disconnected', user.peerId);
-    delete users[socket.id];
+    io.emit('user-disconnected', socket.peerId);
   });
 });
+server.listen(10000, () => console.log('Server running on http://localhost:10000'));
