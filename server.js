@@ -1,38 +1,32 @@
 const express = require('express');
-const http = require('http');
-const { Server } = require('socket.io');
-const { ExpressPeerServer } = require('peer');
-
 const app = express();
+const http = require('http');
 const server = http.createServer(app);
+const { Server } = require('socket.io');
 const io = new Server(server);
-const PORT = process.env.PORT || 3000;
-
+const { ExpressPeerServer } = require('peer');
 const peerServer = ExpressPeerServer(server, {
   debug: true,
-  path: '/peerjs'
 });
 
 app.use('/peerjs', peerServer);
 app.use(express.static('public'));
 
 io.on('connection', (socket) => {
-  console.log('a user connected');
-
-  socket.on('join-room', (peerId) => {
-    socket.peerId = peerId;
+  socket.on('join-room', (id) => {
+    socket.broadcast.emit('user-in-discussion', id);
   });
 
-  socket.on('entered-room', ({ room, peerId }) => {
-    socket.currentRoom = room;
-    socket.broadcast.emit('user-in-room', { userId: peerId, room });
+  socket.on('avatar-move', (data) => {
+    io.emit('avatar-update', { id: socket.id, ...data });
   });
 
   socket.on('disconnect', () => {
-    console.log('user disconnected');
+    io.emit('user-disconnected', socket.id);
   });
 });
 
+const PORT = process.env.PORT || 3000;
 server.listen(PORT, () => {
-  console.log(`Server running on port ${PORT}`);
+  console.log(`Server running on http://localhost:${PORT}`);
 });
